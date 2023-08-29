@@ -4,13 +4,16 @@ import streamlit as st
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.embeddings import TensorflowHubEmbeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.embeddings.spacy_embeddings import SpacyEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.manager import AsyncCallbackManager
 
 if 'sidebar_state' not in st.session_state:
-    st.session_state.sidebar_state = 'collapsed'
+    st.session_state.sidebar_state = 'expanded'  ## 'collapsed' or 'expanded'
 
 st.set_page_config(page_title="Chat PDF", page_icon=':shark:', initial_sidebar_state=st.session_state.sidebar_state)
 
@@ -108,6 +111,23 @@ def main():
             return
     else:
         os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
+
+    available_embeddings = [
+        'OpenAIEmbeddings', 
+        'HuggingFaceEmbeddings',
+        'TensorflowHubEmbeddings',
+        'SpacyEmbeddings'
+    ]
+
+    selected_embedding = st.sidebar.selectbox('Select Embedding:', available_embeddings)
+    if selected_embedding == 'OpenAIEmbeddings':
+        embeddings = OpenAIEmbeddings()
+    elif selected_embedding == 'HuggingFaceEmbeddings':
+        embeddings = HuggingFaceEmbeddings()
+    elif selected_embedding == 'TensorflowHubEmbeddings':
+        embeddings = TensorflowHubEmbeddings()
+    elif selected_embedding == 'SpacyEmbeddings':
+        embeddings = SpacyEmbeddings()
 
     uploaded_files = st.file_uploader("Upload a PDF document", type=["pdf"], accept_multiple_files=True)
 
