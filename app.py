@@ -5,9 +5,7 @@ from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.embeddings import TensorflowHubEmbeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.embeddings.spacy_embeddings import SpacyEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.manager import AsyncCallbackManager
@@ -15,7 +13,11 @@ from langchain.callbacks.manager import AsyncCallbackManager
 if 'sidebar_state' not in st.session_state:
     st.session_state.sidebar_state = 'expanded'  ## 'collapsed' or 'expanded'
 
-st.set_page_config(page_title="Chat PDF", page_icon=':shark:', initial_sidebar_state=st.session_state.sidebar_state)
+st.set_page_config(
+    page_title = "Chat PDF",
+    page_icon = ':shark:',
+    initial_sidebar_state = st.session_state.sidebar_state
+)
 
 @st.cache_data
 def load_docs(files):
@@ -33,7 +35,6 @@ def load_docs(files):
             st.warning('Please provide a valid .pdf document.', icon="⚠️")
     return all_text
 
-@st.cache_resource
 def create_retriever(_embeddings, splits):
     try:
         vectorstore = FAISS.from_texts(splits, _embeddings)
@@ -42,10 +43,13 @@ def create_retriever(_embeddings, splits):
         return
     return vectorstore.as_retriever(k=5)
 
-@st.cache_resource
-def split_texts(text, chunk_size, overlap, split_method):
+def split_texts(text, chunk_size, overlap):
     st.info("`Processing document...`")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = chunk_size,
+        chunk_overlap = overlap
+    )
+
     splits = text_splitter.split_text(text)
     if not splits:
         st.error("Failed to process document")
@@ -103,7 +107,10 @@ def main():
 
     if 'openai_api_key' not in st.session_state:
         openai_api_key = st.text_input(
-            'Please enter your OpenAI API key', value="", placeholder="Your OpenAI API key begins with sk-")
+            label = 'Please enter your OpenAI API key', 
+            value = "", 
+            placeholder = "Your OpenAI API key begins with sk-"
+        )
         if openai_api_key:
             st.session_state.openai_api_key = openai_api_key
             os.environ["OPENAI_API_KEY"] = openai_api_key
@@ -113,24 +120,24 @@ def main():
         os.environ["OPENAI_API_KEY"] = st.session_state.openai_api_key
 
     available_embeddings = [
-        'OpenAIEmbeddings', 
-        'HuggingFaceEmbeddings',
-        'TensorflowHubEmbeddings',
-        'SpacyEmbeddings'
+        'OpenAI', 
+        'HuggingFace'
     ]
 
-    selected_embedding = st.sidebar.selectbox('Select Embedding:', available_embeddings)
-    if selected_embedding == 'OpenAIEmbeddings':
+    selected_embedding = st.sidebar.selectbox('Select Embedding Method:', available_embeddings)
+    if selected_embedding == 'OpenAI':
         embeddings = OpenAIEmbeddings()
-    elif selected_embedding == 'HuggingFaceEmbeddings':
+    elif selected_embedding == 'HuggingFace':
         embeddings = HuggingFaceEmbeddings()
-    elif selected_embedding == 'TensorflowHubEmbeddings':
-        embeddings = TensorflowHubEmbeddings()
-    elif selected_embedding == 'SpacyEmbeddings':
-        embeddings = SpacyEmbeddings()
 
+    available_models = [
+        'GPT-3.5',
+        'GPT-4'
+    ]
+
+    selected_model = st.sidebar.selectbox('Select Model Type:', available_models)
+    
     uploaded_files = st.file_uploader("Upload a PDF document", type=["pdf"], accept_multiple_files=True)
-
     if uploaded_files:
         if 'last_uploaded_files' not in st.session_state or st.session_state.last_uploaded_files != uploaded_files:
             st.session_state.last_uploaded_files = uploaded_files
@@ -138,20 +145,48 @@ def main():
         loaded_text = load_docs(uploaded_files)
         st.write("Document loaded.")
 
-        splits = split_texts(loaded_text, chunk_size=1000, overlap=0, split_method="RecursiveCharacterTextSplitter")
+        splits = split_texts(
+            text = loaded_text,
+            chunk_size = 1000,
+            overlap = 0
+        )
         st.write("Document processed.")
 
-        embeddings = OpenAIEmbeddings()
         retriever = create_retriever(embeddings, splits)
 
         callback_handler = StreamingStdOutCallbackHandler()
         callback_manager = AsyncCallbackManager([callback_handler])
 
-        chat_openai = ChatOpenAI(
-            streaming=True, callback_manager=callback_manager, verbose=True, temperature=0)
-        qa = RetrievalQA.from_chain_type(llm=chat_openai, retriever=retriever, chain_type="stuff", verbose=True)
+        if selected_model == 'GPT-3.5':
+            model = ChatOpenAI(
+                model_name = "gpt-3.5-turbo",
+                streaming = True,
+                callback_manager = callback_manager,
+                verbose = True,
+                temperature = 0
+            )
+        elif selected_model == 'GPT-4':
+            model = ChatOpenAI(
+                model_name = "gpt-4",
+                streaming = True,
+                callback_manager = callback_manager,
+                verbose = True,
+                temperature = 0
+            )
+        
+        qa = RetrievalQA.from_chain_type(
+            llm = model,
+            retriever = retriever,
+            chain_type = "stuff",
+            verbose = True
+        )
 
-        user_question = st.text_input("", value="", placeholder="How can I help you?")
+        user_question = st.text_input(
+            label = "",
+            value = "",
+            placeholder = "How can I help you?"
+        )
+
         if user_question:
             with st.spinner('Generating answer...'):
                 answer = qa.run(user_question)
