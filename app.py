@@ -10,6 +10,12 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.manager import AsyncCallbackManager
 
+PREDEFINED_QUESTIONS = [
+    "What is the main topic of the document?",
+    "Are there any key figures mentioned?",
+    "What conclusions are drawn?"
+]
+
 if 'sidebar_state' not in st.session_state:
     st.session_state.sidebar_state = 'expanded'  ## 'collapsed' or 'expanded'
 
@@ -142,6 +148,9 @@ def main():
         if 'last_uploaded_files' not in st.session_state or st.session_state.last_uploaded_files != uploaded_files:
             st.session_state.last_uploaded_files = uploaded_files
 
+        if 'predefined_answers' not in st.session_state:
+            st.session_state.predefined_answers = None
+
         loaded_text = load_docs(uploaded_files)
         st.write("Document loaded.")
 
@@ -181,16 +190,34 @@ def main():
             verbose = True
         )
 
+        st.markdown("---")  ## horizontal line
+
         user_question = st.text_input(
-            label = "",
+            label = "Ask a Question",
             value = "",
             placeholder = "How can I help you?"
         )
 
+        user_prompt = st.text_area(
+            label="Prompt or Context (Optional):",
+            value="",
+            placeholder="Please provide any context or specific instructions here..."
+        )
+
         if user_question:
             with st.spinner('Generating answer...'):
-                answer = qa.run(user_question)
+                answer = qa.run(f"{user_prompt} {user_question}")
             st.write(answer)
+
+        st.markdown("---")  ## horizontal line
+        
+        if st.session_state.predefined_answers is None:
+            with st.spinner('Generating answers for predefined questions...'):
+                st.session_state.predefined_answers = [qa.run(f"{user_prompt} {question}") for question in PREDEFINED_QUESTIONS]
+
+        for i, (q, a) in enumerate(zip(PREDEFINED_QUESTIONS, st.session_state.predefined_answers)):
+            st.write(f"**Question {i + 1}:** {q}")
+            st.write(f"**Answer {i + 1}:** {a}\n")
 
 if __name__ == "__main__":
     main()
