@@ -10,12 +10,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.manager import AsyncCallbackManager
 
-PREDEFINED_QUESTIONS = [
-    "What is the main topic of the document?",
-    "Are there any key figures mentioned?",
-    "What conclusions are drawn?"
-]
-
 if 'sidebar_state' not in st.session_state:
     st.session_state.sidebar_state = 'expanded'  ## 'collapsed' or 'expanded'
 
@@ -61,6 +55,21 @@ def split_texts(text, chunk_size, overlap):
         st.error("Failed to process document")
         st.stop()
     return splits
+
+PREDEFINED_QUESTIONS = [
+    {
+        "question": "What is the main idea of this document?",
+        "prompt": "Summarize the main idea of this document."
+    },
+    {
+        "question": "What are 3 key points discussed in this document?",
+        "prompt": "List the key points discussed in this document."
+    },
+    {
+        "question": "Can you provide a brief overview of the document?",
+        "prompt": "Give me a brief overview of the document."
+    }
+]
 
 def main():
     st.markdown(
@@ -199,7 +208,7 @@ def main():
         )
 
         user_prompt = st.text_area(
-            label="Prompt or Context (Optional):",
+            label="Context (Optional):",
             value="",
             placeholder="Please provide any context or specific instructions here..."
         )
@@ -213,11 +222,16 @@ def main():
         
         if st.session_state.predefined_answers is None:
             with st.spinner('Generating answers for predefined questions...'):
-                st.session_state.predefined_answers = [qa.run(f"{user_prompt} {question}") for question in PREDEFINED_QUESTIONS]
+                st.session_state.predefined_answers = [
+                    qa.run(f"{question['question']} {question['prompt']}") for question in PREDEFINED_QUESTIONS
+                ]
 
         for i, (q, a) in enumerate(zip(PREDEFINED_QUESTIONS, st.session_state.predefined_answers)):
-            st.write(f"**Question {i + 1}:** {q}")
-            st.write(f"**Answer {i + 1}:** {a}\n")
+            # st.markdown(f"<h3>Response {i + 1}</h3>", unsafe_allow_html=True)
+            st.write(f"**Question:** {q['question']}")
+            st.write(f"**Context:** {q['prompt']}")
+            st.write(f"**Answer:** {a}\n")
+            st.write("---")
 
 if __name__ == "__main__":
     main()
