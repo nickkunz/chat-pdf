@@ -1,6 +1,8 @@
 import os
+import csv
 import PyPDF2
 import streamlit as st
+from io import StringIO
 from langchain.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
@@ -11,7 +13,7 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.manager import AsyncCallbackManager
 
 if 'sidebar_state' not in st.session_state:
-    st.session_state.sidebar_state = 'expanded'  ## 'collapsed' or 'expanded'
+    st.session_state.sidebar_state = 'collapsed'  ## 'collapsed' or 'expanded'
 
 st.set_page_config(
     page_title = "Chat PDF",
@@ -55,6 +57,31 @@ def split_texts(text, chunk_size, overlap):
         st.error("Failed to process document")
         st.stop()
     return splits
+
+## report generator
+def generate_report(predefined_questions, predefined_answers, user_question=None, user_answer=None):
+    # output = StringIO()
+    # writer = csv.writer(output)
+
+    # # Write headers to the CSV
+    # writer.writerow(["Type", "Question/Context", "Answer"])
+
+    # # Write predefined questions and answers to the CSV
+    # for q, a in zip(predefined_questions, predefined_answers):
+    #     writer.writerow(["Predefined Question", q['question'], a])
+    #     writer.writerow(["Predefined Context", q['prompt'], ""])
+
+    # # Add separator
+    # writer.writerow([])
+
+    # # Write user's question and answer to the CSV
+    # if user_question:
+    #     writer.writerow(["User Question", user_question, user_answer if user_answer else ""])
+
+    # # Reset the StringIO cursor to the beginning
+    # output.seek(0)
+    # return output.getvalue()
+    pass
 
 PREDEFINED_QUESTIONS = [
     {
@@ -232,6 +259,21 @@ def main():
             st.write(f"**Context:** {q['prompt']}")
             st.write(f"**Answer:** {a}\n")
             st.write("---")
+
+        st.header("Report Generator")
+        st.write("Click the button below to generate a comprehensive report based on the provided questions and answers.")
+
+        if st.button("Generate report"):
+            user_answer = None
+            if user_question:
+                user_answer = qa.run(f"{user_prompt} {user_question}")
+            report = generate_report(
+                predefined_questions=PREDEFINED_QUESTIONS,
+                predefined_answers=st.session_state.predefined_answers,
+                user_question=user_question,
+                user_answer=user_answer
+            )
+            st.text_area("Report:", value=report, height=300)
 
 if __name__ == "__main__":
     main()
